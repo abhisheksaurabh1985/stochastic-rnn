@@ -75,23 +75,24 @@ class STORN(object):
         print "z shape", z.get_shape()
         return z 
 
-    def decoding_step(self, x_t, h_t):
-        """
-        x_t: previous_output
-        h_t: current_input
-        """
-        print "Decoding step x_t shape:", x_t.get_shape()
-        print "Decoding step h_t shape:", h_t.get_shape()
-        print "Decoding step W_hhd shape:", self.W_hhd.get_shape()
-        print "Decoding step W_xhd shape:", self.W_xhd.get_shape()
-        print "Decoding step b_hd shape:", self.b_hd.get_shape()
-        h = tf.tanh(tf.tensordot(self.W_hhd, h_t) + tf.tensordot(self.W_xhd, x_t) + self.b_hd)
-        print "Decoding step h shape:", h.get_shape()
-        print "Decoding step W_hx shape:", self.W_hhd.get_shape()
-        print "Decoding step b_hx shape:", self.b_hx.get_shape()        
-        output_decoding_step = tf.nn.sigmoid(tf.tensordot(self.W_hx, h) + self.b_hx)
-        print "Decoding step output shape:", output_decoding_step.get_shape()
-        return output_decoding_step
+#    def decoding_step(self, h_t, z_t):
+#        """
+#        first input : previous_output
+#        second input: current_input
+#        """
+#        print "Decoding step z_t shape:", z_t.get_shape()
+#        print "Decoding step h_t shape:", h_t.get_shape()
+#        print "Decoding step W_hhd shape:", self.W_hhd.get_shape()
+#        print "Decoding step W_xhd shape:", self.W_xhd.get_shape()
+#        print "Decoding step b_hd shape:", self.b_hd.get_shape()
+#        h = tf.tanh(tf.tensordot(self.W_hhd, h_t, axes = [[1],[0]]) + \
+#                    tf.tensordot(self.W_zh, z_t, axes = [[1],[1]]) + self.b_zh)
+#        print "Decoding step h shape:", h.get_shape()
+#        print "Decoding step W_hx shape:", self.W_hx.get_shape()
+#        print "Decoding step b_hx shape:", self.b_hx.get_shape()        
+#        output_decoding_step = tf.nn.sigmoid(tf.tensordot(self.W_hx, h, axes = [[1],[0]]) + self.b_hx)
+#        print "Decoding step output shape:", output_decoding_step.get_shape()
+#        return output_decoding_step
     
     def encoder_rnn(self, x):
         # Parameters of the encoder network
@@ -135,6 +136,26 @@ class STORN(object):
             # self.z = self.reparametrize_z()
             return self.mu_encoder, self.log_sigma_encoder
                         
+    def get_recons_x(self, x, rec_states):
+        print "Decoding rec_states shape:", rec_states.get_shape()
+        print "Decoding x shape:", x.get_shape()
+        print "Decoding step W_hx shape:", self.W_hx.get_shape()
+        print "Decoding step b_hx shape:", self.b_hx.get_shape()        
+        x = tf.transpose(tf.nn.sigmoid(tf.tensordot(self.W_hx, rec_states, 
+                                              axes = [[1],[0]]) + self.b_hx))
+        print "Decoding step output shape:", x.get_shape()
+        return x        
+
+    def get_decoder_recurrent_state(self, h_t, z_t):
+        print "Decoding step z_t shape:", z_t.get_shape()
+        print "Decoding step h_t shape:", h_t.get_shape()
+        print "Decoding step W_hhd shape:", self.W_hhd.get_shape()
+        print "Decoding step W_xhd shape:", self.W_xhd.get_shape()
+        print "Decoding step b_hd shape:", self.b_hd.get_shape()
+        recurrent_states = tf.tanh(tf.tensordot(self.W_hhd, h_t, axes = [[1],[0]]) + \
+                    tf.tensordot(self.W_zh, z_t, axes = [[1],[1]]) + self.b_zh)
+        return recurrent_states
+        
     def decoder_rnn(self, z):
         # Parameters of the decoder network
         with tf.variable_scope('decoder_rnn', reuse = True):
@@ -146,9 +167,16 @@ class STORN(object):
             self.W_hx = tf.get_variable('W_hx', dtype = tf.float32, initializer = self.init_dec_whx)
             self.b_hx = tf.get_variable('b_hx', dtype = tf.float32, initializer = self.dec_bhx) 
             
-            recons_x_0 = tf.zeros([self.batch_size, self.data_dim], tf.float32) # (T + 1, self.n_hidden_units_enc))                        
-            
-            recons_x = tf.scan(self.decoding_step, z, initializer = recons_x_0, name = 'recons_x')
+            # Initial recurrent state
+            print "z0 first time step shape:", z[0,:,:].get_shape()
+            initial_recurrent_state = tf.tanh(tf.tensordot(self.W_zh, z[0,:,:], axes=[[1],[1]]) + self.b_zh)
+            print "Initial recurrent state shape:", initial_recurrent_state.get_shape()
+            # recons_x_0 = tf.nn.sigmoid(tf.tensordot(self.W_hx, initial_recurrent_state, axes=[[1], [0]]) + self.b_hx) 
+            # print "recons shape x_0:", recons_x_0.get_shape()                      
+            recurrent_states = tf.scan(self.get_decoder_recurrent_state, z, initializer = initial_recurrent_state, name = 'recurrent_states')
+            recons_init_x = tf.zeros([self.batch_size, self.data_dim], tf.float32)
+            recons_x = tf.scan(self.get_recons_x, recurrent_states, initializer = recons_init_x, name = 'recons_x')
+            print "recurrent_states shape:", recurrent_states.get_shape()
             return recons_x                
                 
                 
