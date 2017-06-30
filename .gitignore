@@ -1,0 +1,11 @@
+
+# Python
+*.pyc
+*.jpg
+*.png
+
+# Ignore data directory
+tf_logs/
+
+# Ignore miscellaneous files
+junk.txt
