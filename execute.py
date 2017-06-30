@@ -14,6 +14,7 @@ import gym
 from storn import STORN
 from utils import * # Authored by Max
 from utilities import *
+from train import *
 #%% 
 env = gym.make('Pendulum-v0')
 #%%
@@ -22,13 +23,14 @@ n_samples = 1000
 n_timesteps = 100
 # is the reward handled as observation?
 learned_reward = True
-
 #%% NN params
 n_latent_dim = 2
 HU_enc = 100
 HU_dec = 100
-mb_size = n_samples
+mb_size = 5
 learning_rate = 0.001
+training_epochs = 20
+display_step = 1
 #%% 
 # Initial dataset creation
 # X.shape: (100, 1000, 4); U.shape:(100, 1000,1). The 4 dimensions correspond to
@@ -41,7 +43,6 @@ X_std = X.reshape((-1, X.shape[2])).std(0)
 X = X / X_std
 # 4 dimensions and the control signal combined would be the input variable. 
 XU = np.concatenate((X, U), -1)
-
 #%% ENCODER
 X_dim = XU.shape[2] # Input data dimension 
 _X, z = inputs(X_dim, n_latent_dim, n_timesteps)
@@ -55,15 +56,19 @@ z0 = nne.reparametrize_z(z_mu, z_var)
 #%% DECODER
 x_recons = nne.decoder_rnn(z0)
 #%% LOSS
-global_step = tf.Variable(0, trainable=False)   
+# global_step = tf.Variable(0, trainable=False)   
 loss_op = vanilla_vae_loss(_X, x_recons, z_mu, z_var)
-train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss_op, global_step= global_step)
+solver = tf.train.AdamOptimizer(learning_rate).minimize(loss_op)
 #%% TF Session
 sess = tf.InteractiveSession()
 #sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 sess.run(tf.global_variables_initializer())
 #sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 tf.summary.FileWriter("tf_logs", graph=sess.graph)
+#%% TRAIN
+average_cost = train(sess, loss_op, solver, training_epochs, n_samples, learning_rate, 
+                     mb_size, display_step, _X, XU)
+
 
 
     

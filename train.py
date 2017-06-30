@@ -1,20 +1,31 @@
-def train(dataset, n_samples, learning_rate=0.001, batch_size=100, 
-          training_epochs=10, display_step=5):
-    # Training cycle
-    for epoch in range(training_epochs):
-        avg_cost = 0.
-        total_batch = int(n_samples / batch_size)
+import time
+import os
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from utilities import *
+def train(sess, loss_op, solver, nepochs, n_samples, learning_rate, batch_size, 
+                    display_step, _X, data):
+    avg_vae_loss = []
+    start_time= time.time()
+    print "###### Training starts ######"
+    for epoch in range(nepochs):
+        avg_cost= 0
+        total_batch= int(n_samples/ batch_size)
         # Loop over all batches
         for i in range(total_batch):
-            batch_xs, _ = dataset.train.next_batch(batch_size) # Rename _ to batch_xs_labels. batch_xs: (100, 784); _: (100, 10)
-
-            # Fit training using batch data
-            cost = vae.partial_fit(batch_xs)
-            # Compute average loss
-            avg_cost += cost / n_samples * batch_size
-
-        # Display logs per epoch step
+            # batch_xs, batch_xs_labels = dataset.train.next_batch(batch_size)
+            batch_xs = data
+            _, cost= sess.run([solver, vanilla_vae_loss], feed_dict={_X: batch_xs})
+            avg_cost += (cost/ n_samples) *  batch_size
+        avg_vae_loss.append(avg_cost)
         if epoch % display_step == 0:
-            print("Epoch:", '%04d' % (epoch+1), 
-                  "cost=", "{:.9f}".format(avg_cost))
-    return vae
+            line =  "Epoch: %i \t Average cost: %0.9f" % (epoch, avg_vae_loss[epoch])
+            print line
+            # with open(logfile,'a') as f:
+            #    f.write(line + "\n")
+            # samples = sess.run(X_samples, feed_dict={z: np.random.randn(16, z_dim)})
+    print("--- %s seconds ---" % (time.time() - start_time))    
+    return avg_vae_loss
+
