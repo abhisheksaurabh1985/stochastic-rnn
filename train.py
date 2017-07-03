@@ -1,10 +1,12 @@
 import time
-import os
+#import os
+#
+#import numpy as np
+#import matplotlib.pyplot as plt
+#from tensorflow.examples.tutorials.mnist import input_data
+#
+#import utilities
 
-import numpy as np
-import matplotlib.pyplot as plt
-
-from utilities import *
 def train(sess, loss_op, solver, nepochs, n_samples, learning_rate, batch_size, 
                     display_step, _X, data):
     avg_vae_loss = []
@@ -12,12 +14,11 @@ def train(sess, loss_op, solver, nepochs, n_samples, learning_rate, batch_size,
     print "###### Training starts ######"
     for epoch in range(nepochs):
         avg_cost= 0
-        total_batch= int(n_samples/ batch_size)
+        total_batch = int(n_samples/ batch_size)
         # Loop over all batches
         for i in range(total_batch):
-            # batch_xs, batch_xs_labels = dataset.train.next_batch(batch_size)
-            batch_xs = data
-            _, cost= sess.run([solver, vanilla_vae_loss], feed_dict={_X: batch_xs})
+            batch_xs = data.train.next_batch(batch_size)
+            _, cost= sess.run([solver, loss_op], feed_dict={_X: batch_xs})
             avg_cost += (cost/ n_samples) *  batch_size
         avg_vae_loss.append(avg_cost)
         if epoch % display_step == 0:

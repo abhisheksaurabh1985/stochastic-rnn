@@ -4,7 +4,7 @@ import tensorflow as tf
 class STORN(object):
     def __init__(self, data_dim, time_steps, n_hidden_units_enc, n_hidden_units_dec, 
                  n_latent_dim, batch_size, learning_rate = 0.001, 
-                 mu_init = 0, sigma_init = 1):
+                 mu_init = 0, sigma_init = 0.01):
         self.data_dim = data_dim
         self.time_steps = time_steps
         self.n_hidden_units_enc = n_hidden_units_enc
@@ -73,14 +73,6 @@ class STORN(object):
     def encoder_rnn(self, x):
         # Parameters of the encoder network
         with tf.variable_scope('encoder_rnn'): 
-#            self.W_xhe = tf.Variable('W_xhe', dtype = tf.float32, initializer = self.init_wxhe)
-#            self.W_hhe = tf.Variable('W_hhe', dtype = tf.float32, initializer = self.init_whhe)
-#            self.b_he = tf.Variable('b_he', dtype = tf.float32, initializer = self.init_bhe) 
-#            self.W_hmu = tf.Variable('W_hmu', dtype = tf.float32, initializer = self.init_whmu)
-#            self.b_hmu = tf.Variable('b_hmu', dtype = tf.float32, initializer = self.init_bhmu)
-#            self.W_hsigma = tf.Variable('W_hsigma', dtype = tf.float32, initializer = self.init_whsigma)
-#            self.b_hsigma = tf.Variable('b_hsigma', dtype = tf.float32, initializer = self.init_bhsigma)
-
             self.W_xhe = tf.Variable(initial_value = self.init_wxhe, name = "W_xhe", dtype = tf.float32)
             self.W_hhe = tf.Variable(initial_value = self.init_whhe, name = "W_hhe", dtype = tf.float32)
             self.b_he = tf.Variable(initial_value = self.init_bhe, name = "b_he", dtype = tf.float32) 
@@ -89,8 +81,10 @@ class STORN(object):
             self.W_hsigma = tf.Variable(initial_value = self.init_whsigma, name = "W_hsigma", dtype = tf.float32)
             self.b_hsigma = tf.Variable(initial_value = self.init_bhsigma, name = "b_hsigma", dtype = tf.float32)
             # Number of time steps
+            # W_xhe = tf.Print(self.W_xhe, [self.W_xhe], "W_xhe: ")
             states_0 = tf.zeros([self.batch_size, self.n_hidden_units_enc], tf.float32) 
             print "states_0 shape", states_0.get_shape()
+            print "x shape", x.get_shape()
             states = tf.scan(self.encoding_step, x, initializer = states_0, name = 'states')
             print "states shape", states.get_shape()
             # Reshape states
@@ -102,6 +96,7 @@ class STORN(object):
             # Parameters of the distribution
             self.mu_encoder = tf.tensordot(self.W_hmu, _states, axes=[[1],[1]])
             print "mu_encoder shape", self.mu_encoder.get_shape()
+            # tf.shape(x)[1]
             self.mu_encoder = tf.reshape(tf.transpose(self.mu_encoder), (self.time_steps, self.batch_size, -1))             
             print "mu_encoder 3D shape", self.mu_encoder.get_shape()
             self.log_sigma_encoder = tf.tensordot(self.W_hsigma, _states, axes=[[1],[1]])

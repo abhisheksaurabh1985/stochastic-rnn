@@ -6,6 +6,7 @@
 
 # Ignore data directory
 tf_logs/
+pickled_data/
 
 # Ignore miscellaneous files
 junk.txt
