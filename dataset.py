@@ -11,8 +11,6 @@ import gym
 
 import utilities
 
-
-
 class Datasets(object):
     pass
 
@@ -22,7 +20,7 @@ class Dataset(object):
         self._num_examples = features.shape[0]
 
         features = features.astype(np.float32)
-        features = np.multiply(features - 130.0, 1.0 / 70.0) # [130.0 - 200.0] -> [0 - 1]
+        # features = np.multiply(features - 130.0, 1.0 / 70.0) # [130.0 - 200.0] -> [0 - 1]
         self._features = features
         # self._labels = labels
         self._epochs_completed = 0

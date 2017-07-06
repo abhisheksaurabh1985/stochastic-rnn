@@ -28,21 +28,9 @@ n_latent_dim = 2
 HU_enc = 100
 HU_dec = 100
 mb_size = 3
-learning_rate = 0.001
+learning_rate = 0.0001
 training_epochs = 20
 display_step = 1
-#%% 
-# Initial dataset creation
-# X.shape: (100, 1000, 4); U.shape:(100, 1000,1). The 4 dimensions correspond to
-# cosine and sine of angle alpha, angular velocity and reward. 
-# U is the one dimensional control signal at each time step. 
-#X, U = utilities.rollout(env, n_samples, n_timesteps, learned_reward=learned_reward, fn_action=None)
-#X_mean = X.reshape((-1, X.shape[2])).mean(0)
-#X = X - X_mean
-#X_std = X.reshape((-1, X.shape[2])).std(0)
-#X = X / X_std
-## 4 dimensions and the control signal combined would be the input variable. 
-#XU = np.concatenate((X, U), -1)
 #%%
 XU = pickle.load(open('./pickled_data/XU.pkl', "rb"))
 #%% ENCODER
@@ -66,9 +54,6 @@ sess = tf.InteractiveSession()
 sess.run(tf.global_variables_initializer())
 # sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 tf.summary.FileWriter("tf_logs", graph=sess.graph)
-
-#w = sess.run(nne.W_xhe)
-#print w
 #%% TRAIN
 average_cost = train.train(sess, loss_op, solver, training_epochs, n_samples, learning_rate, 
                      mb_size, display_step, _X, XU)

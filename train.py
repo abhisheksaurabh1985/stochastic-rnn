@@ -1,11 +1,4 @@
 import time
-#import os
-#
-#import numpy as np
-#import matplotlib.pyplot as plt
-#from tensorflow.examples.tutorials.mnist import input_data
-#
-#import utilities
 
 def train(sess, loss_op, solver, nepochs, n_samples, learning_rate, batch_size, 
                     display_step, _X, data):
