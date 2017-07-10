@@ -1,5 +1,5 @@
 import os
-os.chdir('/home/abhishek/Projects/tensorflow_11/master-thesis/my_public_repos/storn_dvbf/')
+os.chdir('/home/abhishek/Desktop/Projects/tensorflow_11/master-thesis/my_public_repos/storn_dvbf/')
 
 activate_this = '../../.././venv/bin/activate_this.py'
 execfile(activate_this, dict(__file__ = activate_this))
@@ -57,12 +57,36 @@ class Dataset(object):
         return self._features[:,start:end,:] # , self._labels[start:end]
 
 # shuffle data and its label in association
+#def corresponding_shuffle(data):
+#    random_indices = np.random.permutation(len(data)) # This step shuffles the first dimension i.e time in this case. This is wrong. 
+#    _data = np.zeros_like(data)
+#    for i, j in enumerate(random_indices):
+#        _data[i] = data[j]
+#    return _data
+
+# Shuffle data and its label in association
 def corresponding_shuffle(data):
-    random_indices = np.random.permutation(len(data))
-    _data = np.zeros_like(data)
-    for i, j in enumerate(random_indices):
-        _data[i] = data[j]
-    return _data
+    print len(data.shape)
+    if len(data.shape) == 3:
+        random_indices = np.random.permutation(data.shape[1])
+        print random_indices.shape
+        print random_indices
+        _data = np.zeros_like(data)
+        print _data.shape
+        for i,j in enumerate(random_indices):
+            print _data[:,i].shape, data[:,j,:].shape
+            _data[:,i] = data[:,j,:]
+    elif len(data.shape) == 2:
+        random_indices = np.random.permutation(len(data))
+        _data = np.zeros_like(data)
+        for i,j in enumerate(random_indices):
+            _data[i] = data[j]
+    print "_data.shape", _data.shape
+    return _data, random_indices        
+
+def data_sanity_check_post_shuffling(data, shuffled_data, random_indices):
+    for i,j in enumerate(random_indices):
+        
 
 # save dataset as a pickle file
 def save_as_pickle(filename, dataset):
@@ -86,10 +110,13 @@ if __name__ == '__main__':
     X_std = X.reshape((-1, X.shape[2])).std(0)
     X = X / X_std
     # 4 dimensions and the control signal combined would be the input variable. 
+    # X.shape: (100, 1000, 4); U.shape:(100, 1000,1). The 4 dimensions correspond to
+    # cosine and sine of angle alpha, angular velocity and reward. 
+    # U is the one dimensional control signal at each time step. 
     XU = np.concatenate((X, U), -1)
 
     # shuffle
-    data = corresponding_shuffle(XU)
+    data, random_indices = corresponding_shuffle(XU)
 
     # split data
     N_train = np.floor(n_samples * 2 * 1).astype(np.int32)

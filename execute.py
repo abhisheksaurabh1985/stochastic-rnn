@@ -1,5 +1,5 @@
 import os
-os.chdir('/home/abhishek/Projects/tensorflow_11/master-thesis/my_public_repos/storn_dvbf/')
+os.chdir('/home/abhishek/Desktop/Projects/tensorflow_11/master-thesis/my_public_repos/storn_dvbf/')
 
 activate_this = '../../.././venv/bin/activate_this.py'
 execfile(activate_this, dict(__file__ = activate_this))
@@ -15,6 +15,7 @@ from storn import STORN
 from dataset import *
 import utilities
 import train
+import helper_functions
 #%% 
 # env = gym.make('Pendulum-v0')
 #%%
@@ -29,7 +30,7 @@ HU_enc = 100
 HU_dec = 100
 mb_size = 3
 learning_rate = 0.0001
-training_epochs = 20
+training_epochs = 5
 display_step = 1
 #%%
 XU = pickle.load(open('./pickled_data/XU.pkl', "rb"))
@@ -58,7 +59,11 @@ tf.summary.FileWriter("tf_logs", graph=sess.graph)
 average_cost = train.train(sess, loss_op, solver, training_epochs, n_samples, learning_rate, 
                      mb_size, display_step, _X, XU)
 
-
-
+#%% PLOTS
+# Prepare data for plotting
+cos_actual = helper_functions.sliceFrom3DTensor(XU.train.next_batch(10), 0)
+sine_actual = helper_functions.sliceFrom3DTensor(XU.train.next_batch(10), 1)
+w_actual =  helper_functions.sliceFrom3DTensor(XU.train.next_batch(10), 2) # Angular velocity omega
+reward_actual = helper_functions.sliceFrom3DTensor(XU.train.next_batch(10), 1)
     
 
