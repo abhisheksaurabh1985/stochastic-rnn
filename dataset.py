@@ -6,7 +6,6 @@ execfile(activate_this, dict(__file__ = activate_this))
 
 import pickle
 import numpy as np
-# from numpy.random import *
 import gym
 
 import utilities
@@ -17,7 +16,7 @@ class Datasets(object):
 class Dataset(object):
     def __init__(self, features):
         # assert features.shape[0] == labels.shape[0], ("features.shape: %s labels.shape: %s" % (features.shape, labels.shape))
-        self._num_examples = features.shape[0]
+        self._num_examples = features.shape[1]
 
         features = features.astype(np.float32)
         # features = np.multiply(features - 130.0, 1.0 / 70.0) # [130.0 - 200.0] -> [0 - 1]
@@ -47,7 +46,7 @@ class Dataset(object):
             # Shuffle the data
             perm = np.arange(self._num_examples)
             np.random.shuffle(perm)
-            self._features = self._features[perm]
+            self._features = self._features[:,perm,]
             # self._labels = self._labels[perm]
             # Start next epoch
             start = 0
@@ -56,38 +55,31 @@ class Dataset(object):
         end = self._index_in_epoch
         return self._features[:,start:end,:] # , self._labels[start:end]
 
-# shuffle data and its label in association
-#def corresponding_shuffle(data):
-#    random_indices = np.random.permutation(len(data)) # This step shuffles the first dimension i.e time in this case. This is wrong. 
-#    _data = np.zeros_like(data)
-#    for i, j in enumerate(random_indices):
-#        _data[i] = data[j]
-#    return _data
-
 # Shuffle data and its label in association
 def corresponding_shuffle(data):
-    print len(data.shape)
     if len(data.shape) == 3:
         random_indices = np.random.permutation(data.shape[1])
-        print random_indices.shape
-        print random_indices
         _data = np.zeros_like(data)
-        print _data.shape
         for i,j in enumerate(random_indices):
-            print _data[:,i].shape, data[:,j,:].shape
             _data[:,i] = data[:,j,:]
     elif len(data.shape) == 2:
         random_indices = np.random.permutation(len(data))
         _data = np.zeros_like(data)
         for i,j in enumerate(random_indices):
             _data[i] = data[j]
-    print "_data.shape", _data.shape
     return _data, random_indices        
 
 def data_sanity_check_post_shuffling(data, shuffled_data, random_indices):
+    result = [] 
     for i,j in enumerate(random_indices):
+        result.append((shuffled_data[:,i,:] == data[:,j,:]).all())
+    # Look for the occurrence of False in the list 
+    if all(result) == True:
+        print "Data shuffled correctly. Sanity check passed."
+    else:
+        print "Data NOT shuffled correctly. Check script."
+    return result    
         
-
 # save dataset as a pickle file
 def save_as_pickle(filename, dataset):
     with open(filename, "wb") as f:
@@ -101,6 +93,7 @@ if __name__ == '__main__':
 
     n_samples = 1000
     n_timesteps = 100
+    test_size = 0.2 # Percentage of test data
     # is the reward handled as observation?
     learned_reward = True
     
@@ -115,21 +108,23 @@ if __name__ == '__main__':
     # U is the one dimensional control signal at each time step. 
     XU = np.concatenate((X, U), -1)
 
-    # shuffle
-    data, random_indices = corresponding_shuffle(XU)
+    # Shuffle data for creating mini-batches
+    shuffled_data, random_indices = corresponding_shuffle(XU)
+    # Check if data was shuffled correctly
+    data_sanity_check_post_shuffling(XU, shuffled_data, random_indices)
 
-    # split data
-    N_train = np.floor(n_samples * 2 * 1).astype(np.int32)
-    N_validation = np.floor(N_train * 0).astype(np.int32)
-    x_train, x_test = np.split(data, [N_train])
-    # y_train, y_test = np.split(target, [N_train])
-    x_validation = x_train[:N_validation]
-    # y_validation = y_train[:N_validation]
+    # Split into train and test data
+#    x_train, x_test, _, _ = train_test_split(shuffled_data, test_size = test_size) 
+#    print x_train.shape, x_test.shape        
 
-    # create dataset
+    x_train, x_test = np.split(shuffled_data, 
+                               [int(.8*shuffled_data.shape[1])], axis = 1)    
+    
+    # Create dataset
     datasets.train = Dataset(x_train)
     datasets.test = Dataset(x_test)
-    datasets.validation = Dataset(x_validation)
 
-    # save as a pickle file
-    save_as_pickle('./pickled_data/XU.pkl', datasets)
+    # Save as a pickle file
+    save_as_pickle('./pickled_data/XU.pkl', XU)
+    save_as_pickle('./pickled_data/shuffled_data.pkl', shuffled_data)
+    save_as_pickle('./pickled_data/datasets.pkl', datasets)

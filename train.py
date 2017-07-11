@@ -17,9 +17,8 @@ def train(sess, loss_op, solver, nepochs, n_samples, learning_rate, batch_size,
         if epoch % display_step == 0:
             line =  "Epoch: %i \t Average cost: %0.9f" % (epoch, avg_vae_loss[epoch])
             print line
-            # with open(logfile,'a') as f:
-            #    f.write(line + "\n")
-            # samples = sess.run(X_samples, feed_dict={z: np.random.randn(16, z_dim)})
+            with open("./output/logfile.log","a") as f:
+                f.write(line + "\n")
     print("--- %s seconds ---" % (time.time() - start_time))    
     return avg_vae_loss
 

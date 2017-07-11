@@ -141,9 +141,14 @@ class STORN(object):
             print "Initial recurrent state shape:", initial_recurrent_state.get_shape()
             recurrent_states = tf.scan(self.get_decoder_recurrent_state, z, initializer = initial_recurrent_state, name = 'recurrent_states')
             recons_init_x = tf.zeros([self.batch_size, self.data_dim], tf.float32)
-            recons_x = tf.scan(self.get_recons_x, recurrent_states, initializer = recons_init_x, name = 'recons_x')
+            self.recons_x = tf.scan(self.get_recons_x, recurrent_states, initializer = recons_init_x, name = 'recons_x')
             print "recurrent_states shape:", recurrent_states.get_shape()
-            return recons_x                
+            print "recons x shape", self.recons_x.get_shape()
+            return self.recons_x  
+
+    def reconstruct(self, sess, X, data):
+        return sess.run(self.recons_x, feed_dict = {X: data})
+              
                 
                 
 

@@ -12,3 +12,4 @@ def sliceFrom3DTensor(tensor, idx):
     """
     tensor_2D = tensor[:,:,idx]
     return tensor_2D
+
