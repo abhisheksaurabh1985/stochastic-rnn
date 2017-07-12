@@ -1,6 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
+import utilities
+
+
 class STORN(object):
     def __init__(self, data_dim, time_steps, n_hidden_units_enc, n_hidden_units_dec, 
                  n_latent_dim, batch_size, learning_rate = 0.001, 
@@ -66,9 +69,9 @@ class STORN(object):
     def reparametrize_z(self, z_mu, z_var):
         eps = tf.random_normal(shape=tf.shape(z_mu), mean= 0, stddev= 1)
         print "eps shape", eps.get_shape()
-        z = tf.add(z_mu, tf.multiply(tf.sqrt(z_var), eps))
-        print "z shape", z.get_shape()
-        return z 
+        self.z = tf.add(z_mu, tf.multiply(tf.sqrt(z_var), eps))
+        print "z shape", self.z.get_shape()
+        return self.z
 
     def encoder_rnn(self, x):
         # Parameters of the encoder network
@@ -88,7 +91,7 @@ class STORN(object):
             states = tf.scan(self.encoding_step, x, initializer = states_0, name = 'states')
             print "states shape", states.get_shape()
             # Reshape states
-            _states = tf.reshape(states, [-1, self.n_hidden_units_enc])
+            _states = tf.reshape(states, [-1, self.n_hidden_units_enc], name = "encoder_states")
             print "_states shape", _states.get_shape()
             print "W_hmu shape", self.W_hmu.get_shape()
             print "b_hmu shape", self.b_hmu.get_shape()
@@ -97,12 +100,22 @@ class STORN(object):
             self.mu_encoder = tf.tensordot(self.W_hmu, _states, axes=[[1],[1]])
             print "mu_encoder shape", self.mu_encoder.get_shape()
             # tf.shape(x)[1]
-            self.mu_encoder = tf.reshape(tf.transpose(self.mu_encoder), (self.time_steps, self.batch_size, -1))             
+            self.mu_encoder = tf.reshape(tf.transpose(self.mu_encoder),
+                                         (self.time_steps, self.batch_size, -1),
+                                         name = "mu_encoder")
             print "mu_encoder 3D shape", self.mu_encoder.get_shape()
             self.log_sigma_encoder = tf.tensordot(self.W_hsigma, _states, axes=[[1],[1]])
             print "log_sigma_encoder shape", self.log_sigma_encoder.get_shape()
-            self.log_sigma_encoder = tf.reshape(tf.transpose(self.log_sigma_encoder), (self.time_steps, self.batch_size, -1))
+            self.log_sigma_encoder = tf.reshape(tf.transpose(self.log_sigma_encoder),
+                                                (self.time_steps, self.batch_size, -1),
+                                                name = "log_sigma_encoder")
             print "log_sigma_encoder shape", self.log_sigma_encoder.get_shape()
+
+            utilities.variable_summaries(self.W_hmu)
+            utilities.variable_summaries(self.b_hmu)
+            utilities.variable_summaries(self.W_hsigma)
+            utilities.variable_summaries(self.b_hsigma)
+
             return self.mu_encoder, self.log_sigma_encoder
                         
     def get_recons_x(self, x, rec_states):
@@ -137,17 +150,29 @@ class STORN(object):
             self.b_hx = tf.Variable(initial_value = self.dec_bhx, name = "b_hx", dtype = tf.float32) 
             # Initial recurrent state
             print "z0 first time step shape:", z[0,:,:].get_shape()
-            initial_recurrent_state = tf.tanh(tf.tensordot(self.W_zh, z[0,:,:], axes=[[1],[1]]) + self.b_zh)
+            initial_recurrent_state = tf.tanh(tf.tensordot(self.W_zh, z[0,:,:],
+                                                           axes=[[1],[1]]) + self.b_zh,
+                                              name = "initial_recurrent_state")
             print "Initial recurrent state shape:", initial_recurrent_state.get_shape()
-            recurrent_states = tf.scan(self.get_decoder_recurrent_state, z, initializer = initial_recurrent_state, name = 'recurrent_states')
-            recons_init_x = tf.zeros([self.batch_size, self.data_dim], tf.float32)
-            self.recons_x = tf.scan(self.get_recons_x, recurrent_states, initializer = recons_init_x, name = 'recons_x')
+            recurrent_states = tf.scan(self.get_decoder_recurrent_state,
+                                       z, initializer = initial_recurrent_state,
+                                       name = 'recurrent_states')
+            recons_init_x = tf.zeros([self.batch_size, self.data_dim],
+                                     tf.float32,
+                                     name = "recons_init_x")
+            self.recons_x = tf.scan(self.get_recons_x,
+                                    recurrent_states, initializer = recons_init_x,
+                                    name = 'recons_x')
             print "recurrent_states shape:", recurrent_states.get_shape()
             print "recons x shape", self.recons_x.get_shape()
-            return self.recons_x  
 
-    def reconstruct(self, sess, X, data):
-        return sess.run(self.recons_x, feed_dict = {X: data})
+            return self.recons_x
+
+    def reconstruct(self, sess, x, data):
+        return sess.run(self.recons_x, feed_dict = {x: data})
+
+    def get_latent(self, sess, x, data):
+        return sess.run(self.z, feed_dict = {x: data})
               
                 
                 

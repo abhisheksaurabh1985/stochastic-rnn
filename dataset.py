@@ -1,17 +1,13 @@
-import os
-os.chdir('/home/abhishek/Desktop/Projects/tensorflow_11/master-thesis/my_public_repos/storn_dvbf/')
-
-activate_this = '../../.././venv/bin/activate_this.py'
-execfile(activate_this, dict(__file__ = activate_this))
-
 import pickle
 import numpy as np
 import gym
 
 import utilities
 
+
 class Datasets(object):
     pass
+
 
 class Dataset(object):
     def __init__(self, features):
@@ -69,6 +65,7 @@ def corresponding_shuffle(data):
             _data[i] = data[j]
     return _data, random_indices        
 
+
 def data_sanity_check_post_shuffling(data, shuffled_data, random_indices):
     result = [] 
     for i,j in enumerate(random_indices):
@@ -80,10 +77,12 @@ def data_sanity_check_post_shuffling(data, shuffled_data, random_indices):
         print "Data NOT shuffled correctly. Check script."
     return result    
         
+
 # save dataset as a pickle file
 def save_as_pickle(filename, dataset):
     with open(filename, "wb") as f:
         pickle.dump(dataset, f)
+
 
 # entry point
 if __name__ == '__main__':

@@ -1,6 +1,20 @@
 import numpy as np
 import tensorflow as tf
 
+
+def variable_summaries(var):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tf.name_scope('summaries'):
+      mean = tf.reduce_mean(var)
+      tf.summary.scalar('mean', mean)
+      with tf.name_scope('stddev'):
+        stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+      tf.summary.scalar('stddev', stddev)
+      tf.summary.scalar('max', tf.reduce_max(var))
+      tf.summary.scalar('min', tf.reduce_min(var))
+      tf.summary.histogram('histogram', var)
+
+
 def inputs(D, Z, time_steps):
     """
     D: Input dimension
@@ -12,19 +26,23 @@ def inputs(D, Z, time_steps):
                        name = 'latent_var')
     return X, z
 
+
 def vanilla_vae_loss(x, x_reconstr, z_mu, z_var):
     print "x shape:", x.get_shape()
     print "x_reconstr:", x_reconstr.get_shape()
     print "z_mu:", z_mu.get_shape()
     print "z_var:", z_var.get_shape()
-    reconstr_loss = -tf.reduce_mean(x * tf.log(1e-10 + x_reconstr)
-                       + (1-x) * tf.log(1e-10 + 1 - x_reconstr), axis = None)
+    reconstr_loss = -tf.reduce_sum(x * tf.log(1e-6 + x_reconstr) + (1-x) * tf.log(1e-6 + 1 - x_reconstr),
+                                   axis = None)
     print "reconstr loss:", reconstr_loss.get_shape()
-    latent_loss = -0.5 * tf.reduce_mean(1 + tf.log(1e-6 + z_var) - tf.square(z_mu) - \
-                         tf.exp(tf.log(1e-6 + z_var)), axis = None)
+    # latent_loss = -0.5 * tf.reduce_sum(1 + tf.log(1e-6 + z_var) - tf.square(z_mu) - \
+    #                      tf.exp(tf.log(1e-6 + z_var)), axis = None)
+    latent_loss = -0.5 * tf.reduce_sum(1 + tf.log(1e-6 + z_var) - tf.square(z_mu) - z_var,
+                                       axis = None)
     print "latent loss:", latent_loss.get_shape()
     loss = tf.reduce_mean(reconstr_loss + latent_loss)
     return loss
+
 
 def rollout(env, n_samples, n_timesteps, n_environment_steps=None, split_batch_ratio=1, learned_reward=True, filter_mode=False, z_0=None, fn_action=None, render=False):
     """

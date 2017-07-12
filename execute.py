@@ -5,7 +5,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL']='2' # To build TF from source. Supposed to sp
 import tensorflow as tf
 from tensorflow.python.framework import ops
 ops.reset_default_graph()
-# from tensorflow.python import debug as tf_debug
+from tensorflow.python import debug as tf_debug
+from matplotlib import pyplot as plt
 
 from storn import STORN
 from dataset import *
@@ -23,11 +24,12 @@ learned_reward = True # is the reward handled as observation?
 n_latent_dim = 2
 HU_enc = 100
 HU_dec = 100
-mb_size = 400
+mb_size = 6
 learning_rate = 0.0001
 training_epochs = 5
 display_step = 1
 model_path = "./output_models/model.ckpt" # Manually create the directory
+logs_path = './tf_logs/'
 
 # DATASET
 XU = pickle.load(open('./pickled_data/XU.pkl', "rb"))
@@ -63,17 +65,78 @@ sess = tf.InteractiveSession()
 # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
 sess.run(init)
 # sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
-tf.summary.FileWriter("tf_logs", graph=sess.graph)
+
+# Summary to monitor cost tensor
+tf.summary.scalar("loss", loss_op)
+
+# Create summary to visualise weights
+for var in tf.trainable_variables():
+    tf.summary.histogram(var.name, var)
+
+# Merge all summaries into a single op
+merged_summary_op = tf.summary.merge_all()
+tf.summary.FileWriter(logs_path, graph=sess.graph)
 
 # TRAINING
 average_cost = train.train(sess, loss_op, solver, training_epochs, n_samples,
                            learning_rate, mb_size, display_step, _X, datasets)
-save_path = saver.save(sess, model_path)
-print "Model saved in file: %s" % save_path
+# save_path = saver.save(sess, model_path)
+# print "Model saved in file: %s" % save_path
+# sess.close()
 
-# Restore model
-saver.restore(sess, model_path)
-print("Model restored from file: %s" % save_path)
+# RESTORE MODEL
+# sess = tf.InteractiveSession()
+# sess.run(init)
+# saver_rest = tf.train.import_meta_graph('./output_models/model.ckpt.meta') # Describes the saved graph structure
+# saver_rest.restore(sess, model_path)
+# print("Model restored from file: %s" % save_path)
 
+# RECONSTRUCTION
+x_sample = datasets.train.next_batch(6)
+print "x_sample.shape", x_sample.shape
 
+latent_for_x_sample = nne.get_latent(sess, _X, x_sample)
+print "latent sample shape", latent_for_x_sample.shape
 
+x_reconstructed = nne.reconstruct(sess, _X, x_sample)
+print "x_reconstructed type", type(x_reconstructed)
+print x_reconstructed.shape
+
+#
+# # PLOTS
+# # Prepare data for plotting
+cos_actual = helper_functions.sliceFrom3DTensor(x_sample, 0)
+sine_actual = helper_functions.sliceFrom3DTensor(x_sample, 1)
+w_actual =  helper_functions.sliceFrom3DTensor(x_sample, 2) # Angular velocity omega
+reward_actual = helper_functions.sliceFrom3DTensor(x_sample, 3)
+
+cos_recons = helper_functions.sliceFrom3DTensor(x_reconstructed , 0)
+sine_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 1)
+w_recons =  helper_functions.sliceFrom3DTensor(x_reconstructed, 2) # Angular velocity omega
+reward_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 3)
+
+# Plot cosine: actual, reconstruction and generative sampling
+time_steps = range(n_timesteps)
+
+plots.line_plot_2d(time_steps, cos_actual[:,0])
+plots.line_plot_2d(time_steps, cos_recons[:,0])
+plt.title("Cosine at all time steps")
+plt.show()
+
+plt.figure()
+plots.line_plot_2d(time_steps, sine_actual[:,0])
+plots.line_plot_2d(time_steps, sine_recons[:,0])
+plt.title("Sine at all time steps")
+plt.show()
+
+plt.figure()
+plots.line_plot_2d(time_steps, w_actual[:,0])
+plots.line_plot_2d(time_steps, w_recons[:,0])
+plt.title("Angular velocity at all time steps")
+plt.show()
+
+plt.figure()
+plots.line_plot_2d(time_steps, reward_actual[:,0])
+plots.line_plot_2d(time_steps, reward_recons[:,0])
+plt.title("Reward at all time steps")
+plt.show()

@@ -1,7 +1,8 @@
 import time
 
-def train(sess, loss_op, solver, nepochs, n_samples, learning_rate, batch_size, 
-                    display_step, _X, data):
+
+def train(sess,loss_op,solver,nepochs,n_samples,learning_rate,batch_size,
+          display_step,_X, data):
     avg_vae_loss = []
     start_time= time.time()
     print "###### Training starts ######"
