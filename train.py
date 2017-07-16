@@ -1,4 +1,5 @@
 import time
+from matplotlib import pyplot as plt
 
 
 def train(sess,loss_op,solver,nepochs,n_samples,learning_rate,batch_size,
@@ -20,6 +21,9 @@ def train(sess,loss_op,solver,nepochs,n_samples,learning_rate,batch_size,
             print line
             with open("./output/logfile.log","a") as f:
                 f.write(line + "\n")
-    print("--- %s seconds ---" % (time.time() - start_time))    
+    print("--- %s seconds ---" % (time.time() - start_time))
+    # Plot training loss per epoch
+    # plt.plot(range(nepochs), avg_vae_loss)
+    # plt.show()
     return avg_vae_loss
 

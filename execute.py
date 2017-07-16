@@ -22,11 +22,11 @@ n_timesteps = 100
 learned_reward = True # is the reward handled as observation?
 # NN params
 n_latent_dim = 2
-HU_enc = 100
-HU_dec = 100
-mb_size = 6
+HU_enc = 128
+HU_dec = 120
+mb_size = 8
 learning_rate = 0.0001
-training_epochs = 5
+training_epochs = 4
 display_step = 1
 model_path = "./output_models/model.ckpt" # Manually create the directory
 logs_path = './tf_logs/'
@@ -40,7 +40,7 @@ datasets = pickle.load(open('./pickled_data/datasets.pkl', "rb"))
 X_dim = datasets.train.full_data.shape[2] # Input data dimension 
 _X, z = utilities.inputs(X_dim, n_latent_dim, n_timesteps)
 nne = STORN(X_dim, n_timesteps, HU_enc, HU_dec, n_latent_dim, mb_size)
-z_mu, z_logvar = nne.encoder_rnn(_X)
+z_mu, z_logvar = nne.encoder_rnn(_X) # Shape:(T,B,z_dim)
 z_var = tf.exp(z_logvar)
 
 # SAMPLING
@@ -49,7 +49,7 @@ z_var = tf.exp(z_logvar)
 z0 = nne.reparametrize_z(z_mu, z_var)
 
 # DECODER
-x_recons = nne.decoder_rnn(z0)
+x_recons = nne.decoder_rnn(z0) # Shape: (T,B,x_dim)
 
 # LOSS
 loss_op = utilities.vanilla_vae_loss(_X, x_recons, z_mu, z_var)
@@ -67,14 +67,14 @@ sess.run(init)
 # sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 
 # Summary to monitor cost tensor
-tf.summary.scalar("loss", loss_op)
+# tf.summary.scalar("loss", loss_op)
 
 # Create summary to visualise weights
-for var in tf.trainable_variables():
-    tf.summary.histogram(var.name, var)
+# for var in tf.trainable_variables():
+#     tf.summary.histogram(var.name, var)
 
 # Merge all summaries into a single op
-merged_summary_op = tf.summary.merge_all()
+# merged_summary_op = tf.summary.merge_all()
 tf.summary.FileWriter(logs_path, graph=sess.graph)
 
 # TRAINING
@@ -92,19 +92,18 @@ average_cost = train.train(sess, loss_op, solver, training_epochs, n_samples,
 # print("Model restored from file: %s" % save_path)
 
 # RECONSTRUCTION
-x_sample = datasets.train.next_batch(6)
+x_sample = datasets.train.next_batch(mb_size)
 print "x_sample.shape", x_sample.shape
 
-latent_for_x_sample = nne.get_latent(sess, _X, x_sample)
-print "latent sample shape", latent_for_x_sample.shape
+# latent_for_x_sample = nne.get_latent(sess, _X, x_sample)
+# print "latent sample shape", latent_for_x_sample.shape
 
 x_reconstructed = nne.reconstruct(sess, _X, x_sample)
 print "x_reconstructed type", type(x_reconstructed)
-print x_reconstructed.shape
+print "x_reconstructed shape", x_reconstructed.shape
 
-#
-# # PLOTS
-# # Prepare data for plotting
+#PLOTS
+##Prepare data for plotting
 cos_actual = helper_functions.sliceFrom3DTensor(x_sample, 0)
 sine_actual = helper_functions.sliceFrom3DTensor(x_sample, 1)
 w_actual =  helper_functions.sliceFrom3DTensor(x_sample, 2) # Angular velocity omega
@@ -118,6 +117,7 @@ reward_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 3)
 # Plot cosine: actual, reconstruction and generative sampling
 time_steps = range(n_timesteps)
 
+plt.figure()
 plots.line_plot_2d(time_steps, cos_actual[:,0])
 plots.line_plot_2d(time_steps, cos_recons[:,0])
 plt.title("Cosine at all time steps")
