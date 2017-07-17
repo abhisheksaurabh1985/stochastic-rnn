@@ -1,9 +1,11 @@
 import os
 import pickle
+import time
 
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2' # To build TF from source. Supposed to speed up the execution by 4-8x. 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # To build TF from source. Supposed to speed up the execution by 4-8x.
 import tensorflow as tf
 from tensorflow.python.framework import ops
+
 ops.reset_default_graph()
 from tensorflow.python import debug as tf_debug
 from matplotlib import pyplot as plt
@@ -15,20 +17,19 @@ import train
 import helper_functions
 import plots
 
-
 # Dataset parameters
 n_samples = 1000
 n_timesteps = 100
-learned_reward = True # is the reward handled as observation?
+learned_reward = True  # is the reward handled as observation?
 # NN params
 n_latent_dim = 2
 HU_enc = 128
 HU_dec = 120
 mb_size = 8
-learning_rate = 0.0001
+learning_rate = 0.001
 training_epochs = 4
 display_step = 1
-model_path = "./output_models/model.ckpt" # Manually create the directory
+model_path = "./output_models/model.ckpt"  # Manually create the directory
 logs_path = './tf_logs/'
 
 # DATASET
@@ -37,10 +38,10 @@ shuffled_data = pickle.load(open('./pickled_data/shuffled_data.pkl', "rb"))
 datasets = pickle.load(open('./pickled_data/datasets.pkl', "rb"))
 
 # ENCODER
-X_dim = datasets.train.full_data.shape[2] # Input data dimension 
+X_dim = datasets.train.full_data.shape[2]  # Input data dimension
 _X, z = utilities.inputs(X_dim, n_latent_dim, n_timesteps)
 nne = STORN(X_dim, n_timesteps, HU_enc, HU_dec, n_latent_dim, mb_size)
-z_mu, z_logvar = nne.encoder_rnn(_X) # Shape:(T,B,z_dim)
+z_mu, z_logvar = nne.encoder_rnn(_X)  # Shape:(T,B,z_dim)
 z_var = tf.exp(z_logvar)
 
 # SAMPLING
@@ -49,10 +50,11 @@ z_var = tf.exp(z_logvar)
 z0 = nne.reparametrize_z(z_mu, z_var)
 
 # DECODER
-x_recons = nne.decoder_rnn(z0) # Shape: (T,B,x_dim)
+x_recons = nne.decoder_rnn(z0)  # Shape: (T,B,x_dim)
 
 # LOSS
-loss_op = utilities.vanilla_vae_loss(_X, x_recons, z_mu, z_var)
+# loss_op = utilities.vanilla_vae_loss(_X, x_recons, z_mu, z_var)
+loss_op = utilities.mse_vanilla_vae_loss(_X, x_recons, z_mu, z_var)
 solver = tf.train.AdamOptimizer(learning_rate).minimize(loss_op)
 
 # Initializing the TensorFlow variables
@@ -67,19 +69,20 @@ sess.run(init)
 # sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 
 # Summary to monitor cost tensor
-# tf.summary.scalar("loss", loss_op)
+tf.summary.scalar("loss", loss_op)
 
 # Create summary to visualise weights
 # for var in tf.trainable_variables():
 #     tf.summary.histogram(var.name, var)
 
 # Merge all summaries into a single op
-# merged_summary_op = tf.summary.merge_all()
-tf.summary.FileWriter(logs_path, graph=sess.graph)
+merged_summary_op = tf.summary.merge_all()
+file_writer = tf.summary.FileWriter(logs_path + "/" + str(int(time.time())),
+                                    graph=sess.graph)
 
 # TRAINING
-average_cost = train.train(sess, loss_op, solver, training_epochs, n_samples,
-                           learning_rate, mb_size, display_step, _X, datasets)
+average_cost = train.train(sess, loss_op, solver, training_epochs, n_samples, mb_size,
+                           display_step, _X, datasets, merged_summary_op, file_writer)
 # save_path = saver.save(sess, model_path)
 # print "Model saved in file: %s" % save_path
 # sess.close()
@@ -102,41 +105,41 @@ x_reconstructed = nne.reconstruct(sess, _X, x_sample)
 print "x_reconstructed type", type(x_reconstructed)
 print "x_reconstructed shape", x_reconstructed.shape
 
-#PLOTS
-##Prepare data for plotting
+# PLOTS
+# Prepare data for plotting
 cos_actual = helper_functions.sliceFrom3DTensor(x_sample, 0)
 sine_actual = helper_functions.sliceFrom3DTensor(x_sample, 1)
-w_actual =  helper_functions.sliceFrom3DTensor(x_sample, 2) # Angular velocity omega
+w_actual = helper_functions.sliceFrom3DTensor(x_sample, 2)  # Angular velocity omega
 reward_actual = helper_functions.sliceFrom3DTensor(x_sample, 3)
 
-cos_recons = helper_functions.sliceFrom3DTensor(x_reconstructed , 0)
+cos_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 0)
 sine_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 1)
-w_recons =  helper_functions.sliceFrom3DTensor(x_reconstructed, 2) # Angular velocity omega
+w_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 2)  # Angular velocity omega
 reward_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 3)
 
 # Plot cosine: actual, reconstruction and generative sampling
 time_steps = range(n_timesteps)
 
 plt.figure()
-plots.line_plot_2d(time_steps, cos_actual[:,0])
-plots.line_plot_2d(time_steps, cos_recons[:,0])
+plots.line_plot_2d(time_steps, cos_actual[:, 0])
+plots.line_plot_2d(time_steps, cos_recons[:, 0])
 plt.title("Cosine at all time steps")
 plt.show()
 
 plt.figure()
-plots.line_plot_2d(time_steps, sine_actual[:,0])
-plots.line_plot_2d(time_steps, sine_recons[:,0])
+plots.line_plot_2d(time_steps, sine_actual[:, 0])
+plots.line_plot_2d(time_steps, sine_recons[:, 0])
 plt.title("Sine at all time steps")
 plt.show()
 
 plt.figure()
-plots.line_plot_2d(time_steps, w_actual[:,0])
-plots.line_plot_2d(time_steps, w_recons[:,0])
+plots.line_plot_2d(time_steps, w_actual[:, 0])
+plots.line_plot_2d(time_steps, w_recons[:, 0])
 plt.title("Angular velocity at all time steps")
 plt.show()
 
 plt.figure()
-plots.line_plot_2d(time_steps, reward_actual[:,0])
-plots.line_plot_2d(time_steps, reward_recons[:,0])
+plots.line_plot_2d(time_steps, reward_actual[:, 0])
+plots.line_plot_2d(time_steps, reward_recons[:, 0])
 plt.title("Reward at all time steps")
 plt.show()

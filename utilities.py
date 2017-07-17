@@ -28,6 +28,22 @@ def inputs(D, Z, time_steps):
     return X, z
 
 
+def mse_vanilla_vae_loss(x, x_reconstr, z_mu, z_var):
+    print "x shape:", x.get_shape()
+    print "x_reconstr:", x_reconstr.get_shape()
+    print "z_mu:", z_mu.get_shape()
+    print "z_var:", z_var.get_shape()
+    reconstr_loss = tf.reduce_sum((x-x_reconstr)**2, name="reconstruction_loss")
+    print "reconstr loss:", reconstr_loss.get_shape()
+    # latent_loss = -0.5 * tf.reduce_sum(1 + tf.log(1e-6 + z_var) - tf.square(z_mu) - \
+    #                      tf.exp(tf.log(1e-6 + z_var)), axis = None)
+    latent_loss = -0.5 * tf.reduce_sum(1 + tf.log(1e-6 + z_var) - tf.square(z_mu) - z_var,
+                                       axis = None)
+    print "latent loss:", latent_loss.get_shape()
+    loss = tf.reduce_mean(reconstr_loss + latent_loss)
+    return loss
+
+
 def vanilla_vae_loss(x, x_reconstr, z_mu, z_var):
     print "x shape:", x.get_shape()
     print "x_reconstr:", x_reconstr.get_shape()
