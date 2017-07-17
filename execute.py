@@ -24,10 +24,10 @@ learned_reward = True  # is the reward handled as observation?
 # NN params
 n_latent_dim = 2
 HU_enc = 128
-HU_dec = 120
-mb_size = 8
-learning_rate = 0.001
-training_epochs = 4
+HU_dec = 128
+mb_size = 5
+learning_rate = 0.0001
+training_epochs = 30
 display_step = 1
 model_path = "./output_models/model.ckpt"  # Manually create the directory
 logs_path = './tf_logs/'
@@ -119,27 +119,7 @@ reward_recons = helper_functions.sliceFrom3DTensor(x_reconstructed, 3)
 
 # Plot cosine: actual, reconstruction and generative sampling
 time_steps = range(n_timesteps)
+actual_signals = [cos_actual, sine_actual, w_actual, reward_actual]
+recons_signals = [cos_recons, sine_recons, w_recons, reward_recons]
 
-plt.figure()
-plots.line_plot_2d(time_steps, cos_actual[:, 0])
-plots.line_plot_2d(time_steps, cos_recons[:, 0])
-plt.title("Cosine at all time steps")
-plt.show()
-
-plt.figure()
-plots.line_plot_2d(time_steps, sine_actual[:, 0])
-plots.line_plot_2d(time_steps, sine_recons[:, 0])
-plt.title("Sine at all time steps")
-plt.show()
-
-plt.figure()
-plots.line_plot_2d(time_steps, w_actual[:, 0])
-plots.line_plot_2d(time_steps, w_recons[:, 0])
-plt.title("Angular velocity at all time steps")
-plt.show()
-
-plt.figure()
-plots.line_plot_2d(time_steps, reward_actual[:, 0])
-plots.line_plot_2d(time_steps, reward_recons[:, 0])
-plt.title("Reward at all time steps")
-plt.show()
+plots.plot_signals_and_reconstructions(time_steps, actual_signals, recons_signals)
