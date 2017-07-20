@@ -25,9 +25,9 @@ learned_reward = True  # is the reward handled as observation?
 n_latent_dim = 2
 HU_enc = 128
 HU_dec = 128
-mb_size = 5
-learning_rate = 0.0001
-training_epochs = 30
+mb_size = 1
+learning_rate = 0.001
+training_epochs = 5
 display_step = 1
 model_path = "./output_models/model.ckpt"  # Manually create the directory
 logs_path = './tf_logs/'
@@ -54,7 +54,7 @@ x_recons = nne.decoder_rnn(z0)  # Shape: (T,B,x_dim)
 
 # LOSS
 # loss_op = utilities.vanilla_vae_loss(_X, x_recons, z_mu, z_var)
-loss_op = utilities.mse_vanilla_vae_loss(_X, x_recons, z_mu, z_var)
+loss_op, summary_losses = utilities.mse_vanilla_vae_loss(_X, x_recons, z_mu, z_var)
 solver = tf.train.AdamOptimizer(learning_rate).minimize(loss_op)
 
 # Initializing the TensorFlow variables
@@ -69,7 +69,7 @@ sess.run(init)
 # sess.add_tensor_filter("has_inf_or_nan", tf_debug.has_inf_or_nan)
 
 # Summary to monitor cost tensor
-tf.summary.scalar("loss", loss_op)
+# tf.summary.scalar("loss_op", loss_op)
 
 # Create summary to visualise weights
 # for var in tf.trainable_variables():
@@ -83,16 +83,6 @@ file_writer = tf.summary.FileWriter(logs_path + "/" + str(int(time.time())),
 # TRAINING
 average_cost = train.train(sess, loss_op, solver, training_epochs, n_samples, mb_size,
                            display_step, _X, datasets, merged_summary_op, file_writer)
-# save_path = saver.save(sess, model_path)
-# print "Model saved in file: %s" % save_path
-# sess.close()
-
-# RESTORE MODEL
-# sess = tf.InteractiveSession()
-# sess.run(init)
-# saver_rest = tf.train.import_meta_graph('./output_models/model.ckpt.meta') # Describes the saved graph structure
-# saver_rest.restore(sess, model_path)
-# print("Model restored from file: %s" % save_path)
 
 # RECONSTRUCTION
 x_sample = datasets.train.next_batch(mb_size)
@@ -123,3 +113,5 @@ actual_signals = [cos_actual, sine_actual, w_actual, reward_actual]
 recons_signals = [cos_recons, sine_recons, w_recons, reward_recons]
 
 plots.plot_signals_and_reconstructions(time_steps, actual_signals, recons_signals)
+
+sess.close()

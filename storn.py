@@ -65,11 +65,11 @@ class STORN(object):
         print "h_t shape:", h_t.get_shape()
         print "x_t shape:", x_t.get_shape()
         print "b_he shape:", self.b_he.get_shape()
-        first_term = tf.tensordot(self.W_xhe, tf.cast(x_t, tf.float32), axes=[[1], [1]])
+        first_term = tf.tensordot(self.W_xhe, tf.cast(x_t, tf.float32), axes=[[1], [1]], name="enc_first_term")
         print "first_term shape", first_term.get_shape()
-        second_term = tf.tensordot(self.W_hhe, tf.cast(h_t, tf.float32), axes=[[1], [1]])
+        second_term = tf.tensordot(self.W_hhe, tf.cast(h_t, tf.float32), axes=[[1], [1]], name="enc_second_term")
         print "second_term shape", second_term.get_shape()
-        output_encoding_step = tf.transpose(tf.tanh(first_term + second_term + self.b_he))
+        output_encoding_step = tf.transpose(tf.tanh(first_term + second_term + self.b_he),  name="output_encoding_step")
         print "output_encoding_shape", output_encoding_step.get_shape()
         return output_encoding_step
 
@@ -78,8 +78,7 @@ class STORN(object):
         Sampling from a normal distribution with the mean and sigma given.
 
         :param z_mu: Mean of the distribution for each item in the mini-batch for each time step.
-                     Has a shape (T,B,D) where T, B and D refer to time step, batch size and dimension
-                     respectively.
+                     Has a shape (T,B,D) where T, B and D refer to time step, batch size and dimension respectively.
         :param z_var: Standard deviation for each item in the mini-batch for each time step. Dimension
                       same as that of z_mu.
         :return: self.z: Sampled (aka reparametrized) z with shape (T,B,D).
@@ -112,7 +111,7 @@ class STORN(object):
             self.b_hsigma = tf.Variable(initial_value=self.init_bhsigma, name="b_hsigma", dtype=tf.float32)
 
             # Number of time steps
-            states_0 = tf.zeros([self.batch_size, self.n_hidden_units_enc], tf.float32)
+            states_0 = tf.zeros([tf.shape(x)[1], self.n_hidden_units_enc], tf.float32, name="enc_states_0")
             print "states_0 shape", states_0.get_shape()
             print "x shape", x.get_shape()  # (100, ?, 5)
             states = tf.scan(self.encoding_step, x, initializer=states_0, name='states')
@@ -126,20 +125,21 @@ class STORN(object):
             print "b_hmu shape", self.b_hmu.get_shape()
 
             # Parameters of the distribution
-            self.mu_encoder = tf.tensordot(self.W_hmu, _states, axes=[[1], [1]])
+            self.mu_encoder = tf.tensordot(self.W_hmu, _states, axes=[[1], [1]], name="mu_encoder")
             print "mu_encoder shape", self.mu_encoder.get_shape()  # Shape:(z_dim, timeSteps*miniBatchSize)
             self.mu_encoder = tf.reshape(tf.transpose(self.mu_encoder),
                                          (self.time_steps, self.batch_size, -1),
-                                         name="mu_encoder")  # Shape:(timeSteps, miniBatchSize, z_dim)
+                                         name="reshaped_mu_encoder")  # Shape:(timeSteps, miniBatchSize, z_dim)
             print "mu_encoder 3D shape", self.mu_encoder.get_shape()
             self.log_sigma_encoder = tf.tensordot(self.W_hsigma, _states,
-                                                  axes=[[1], [1]])  # Shape:(z_dim, timeSteps*miniBatchSize)
+                                                  axes=[[1], [1]],
+                                                  name="log_sigma_encoder")  # Shape:(z_dim, timeSteps*miniBatchSize)
             print "########"
             print "log_sigma_encoder shape", self.log_sigma_encoder.get_shape()
             print "########"
             self.log_sigma_encoder = tf.reshape(tf.transpose(self.log_sigma_encoder),
                                                 (self.time_steps, self.batch_size, -1),
-                                                name="log_sigma_encoder")  # Shape:(timeSteps, miniBatchSize, z_dim)
+                                                name="reshaped_log_sigma_encoder")  # Shape:(timeSteps, miniBatchSize, z_dim)
             print "########"
             print "log_sigma_encoder shape", self.log_sigma_encoder.get_shape()
             print "########"
@@ -163,6 +163,7 @@ class STORN(object):
         (mini_batch, numUnitsDecoder).
         :return x: Reconstruction at each time step. Has a shape (mini_batch, data_dimensions).
         """
+        # First element is the initial recurrent state. Second is the initial reconstruction, which isn't needed.
         h_t, _ = previous_output
         print "Decoding step z_t shape", z_t.get_shape()
         print "Decoding step h_t shape", h_t.get_shape()
@@ -170,14 +171,13 @@ class STORN(object):
         # print "Decoding step W_xhd shape", self.W_xhd.get_shape()
         print "Decoding step b_hd shape", self.b_hd.get_shape()
 
-        h = tf.transpose(tf.tanh(tf.tensordot(self.W_hhd, h_t, axes=[[1], [1]]) +
-                                 tf.tensordot(self.W_zh, z_t, axes=[[1], [1]]) +
-                                 self.b_hd))  # W_hhd:(100,100); h_t:(100,6); W_xhd: (100,5); x_t:(6,5); b_hd:(100,1)
+        # W_hhd:(100,100); h_t:(100,6); W_xhd: (100,5); x_t:(6,5); b_hd:(100,1)
+        h = tf.transpose(tf.tanh(tf.tensordot(self.W_hhd, h_t, axes=[[1], [1]], name="dec_rec_first_term_h") +
+                                 tf.tensordot(self.W_zh, z_t, axes=[[1], [1]], name="dec_rec_second_term_h") +
+                                 self.b_hd), name="decoding_step_tr_h")
         print "Decoding step h shape", h.get_shape()
         print "Decoding step W_hx shape", self.W_hx.get_shape()
         print "Decoding step b_hx shape", self.b_hx.get_shape()
-        # W_hx:(5, 100); h:(100,6); b_hx:(5,1)
-        # Use
         x = tf.transpose(tf.identity(tf.tensordot(self.W_hx, h, axes=[[1], [1]]) + self.b_hx), name="x_recons")
         print "Decoding step x shape", x.get_shape()
         return h, x
@@ -193,12 +193,12 @@ class STORN(object):
         """
         # Parameters of the decoder network
         with tf.variable_scope('decoder_rnn'):
-            self.W_zh = tf.Variable(initial_value=self.init_dec_wzh, name="W_zh", dtype=tf.float32)
+            self.W_zh = tf.Variable(initial_value=self.init_dec_wzh, name="W_zh", dtype=tf.float32)  # Weights for z_t.
             # self.b_zh = tf.Variable(initial_value=self.init_dec_bzh, name="b_zh", dtype=tf.float32)
-            self.W_hhd = tf.Variable(initial_value=self.init_dec_whhd, name="W_hhd", dtype=tf.float32)
+            self.W_hhd = tf.Variable(initial_value=self.init_dec_whhd, name="W_hhd", dtype=tf.float32)  # W_rec
             # self.W_xhd = tf.Variable(initial_value=self.init_dec_wxhd, name="W_xhd", dtype=tf.float32)
             self.b_hd = tf.Variable(initial_value=self.init_dec_bhd, name="b_hd", dtype=tf.float32)
-            self.W_hx = tf.Variable(initial_value=self.init_dec_whx, name="W_hx", dtype=tf.float32)
+            self.W_hx = tf.Variable(initial_value=self.init_dec_whx, name="W_hx", dtype=tf.float32)  # Weights for x_t
             self.b_hx = tf.Variable(initial_value=self.dec_bhx, name="b_hx", dtype=tf.float32)
 
             # Initial recurrent state
@@ -215,11 +215,12 @@ class STORN(object):
             # reconstruction at the first time step.
             initial_recurrent_state = tf.random_normal((self.batch_size, self.n_hidden_units_dec),
                                                        mean=0,
-                                                       stddev=1)
-
+                                                       stddev=1,
+                                                       name="dec_init_rec_state")
             recons_init_x = tf.random_normal((self.batch_size, self.data_dim),
                                              mean=0,
-                                             stddev=1)
+                                             stddev=1,
+                                             name="dec_recons_init_x")
             _, self.recons_x = tf.scan(self.decoding_step,
                                        z, initializer=(initial_recurrent_state, recons_init_x),
                                        name='recons_x')

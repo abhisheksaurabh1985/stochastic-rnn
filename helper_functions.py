@@ -10,6 +10,6 @@ def sliceFrom3DTensor(tensor, idx):
     Returns:
         tensor_2D:
     """
-    tensor_2D = tensor[:,:,idx]
+    tensor_2D = tensor[:, :, idx]
     return tensor_2D
 
